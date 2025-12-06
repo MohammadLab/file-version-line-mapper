@@ -24,7 +24,7 @@ async function main() {
 
   try {
     const mappings = await mapFiles(oldPath, newPath);
-    file.writeFileSync("test.json", JSON.stringify(mappings));
+    file.writeFileSync("../mapping.json", JSON.stringify(mappings));
   } catch (err) {
     console.error("Error while mapping files:", err.message || err);
     process.exit(1);

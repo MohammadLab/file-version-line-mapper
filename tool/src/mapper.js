@@ -70,16 +70,19 @@ function mapLines(oldLines, newLines) {
   }
 
   const TOP_K = 15;
-  const SIM_THRESHOLD = 0.7;
+  const SIM_THRESHOLD = 0.51;
   const CONTEXT_RADIUS = 2;
   const candidateList = [];
 
   for (const oldline of oldLinesNoMatch) {
+    if (isTrivialLine(oldline)) continue; // NEW: skip trivial old lines
+
     const ctxOld = getContext(oldLines, oldline.num, CONTEXT_RADIUS);
     const candidates = [];
 
     for (const newline of newLinesNoMatch) {
       if (usedNewNums.has(newline.num)) continue;
+      if (isTrivialLine(newline)) continue;
 
       const ctxNew = getContext(newLines, newline.num, CONTEXT_RADIUS);
 
@@ -130,6 +133,83 @@ function mapLines(oldLines, newLines) {
     });
   }
 
+  const remainingOld = oldLines.filter((l) => !usedOldNums.has(l.num));
+  const SPLIT_MAX_GROUP = 3; // try up to 3-line splits
+  const SPLIT_THRESHOLD = SIM_THRESHOLD; // reuse same threshold
+  const SPLIT_MAX_OFFSET = 3; // NEW: max distance in line numbers
+  const SPLIT_CONTEXT_RADIUS = 1; // NEW: tighter context for splits
+
+  for (const oldline of remainingOld) {
+    if (isTrivialLine(oldline)) continue; // NEW: don't split on trivial lines
+
+    let bestGroup = null;
+    let bestScore = 0;
+
+    const ctxOld = getContext(oldLines, oldline.num, SPLIT_CONTEXT_RADIUS); // NEW
+
+    // iterate over all newLines and try consecutive groups
+    for (let i = 0; i < newLines.length; i++) {
+      // NEW: only consider groups near this old line
+      if (Math.abs(oldline.num - newLines[i].num) > SPLIT_MAX_OFFSET) continue;
+
+      // first line of group must be unused
+      if (usedNewNums.has(newLines[i].num)) continue;
+      if (isTrivialLine(newLines[i])) continue; // NEW: don't start split on trivial line
+
+      for (let size = 2; size <= SPLIT_MAX_GROUP; size++) {
+        const group = [];
+        let allFree = true;
+
+        for (let k = 0; k < size; k++) {
+          const idx = i + k;
+          if (idx >= newLines.length) {
+            allFree = false;
+            break;
+          }
+          const ln = newLines[idx];
+          if (usedNewNums.has(ln.num)) {
+            allFree = false;
+            break;
+          }
+          if (isTrivialLine(ln)) {
+            // NEW: whole group must be non-trivial
+            allFree = false;
+            break;
+          }
+          group.push(ln);
+        }
+
+        if (!allFree || group.length < 2) continue;
+
+        const combinedNorm = group.map((g) => g.norm).join(" ");
+        const ctxNew = getContext(newLines, group[0].num, SPLIT_CONTEXT_RADIUS); // NEW
+
+        const contentSim = contentSimilarity(oldline.norm, combinedNorm);
+        const ctxSim = contextSimilarity(ctxOld, ctxNew);
+        const score = combinedSimilarity(contentSim, ctxSim);
+
+        if (score > bestScore) {
+          bestScore = score;
+          bestGroup = group;
+        }
+      }
+    }
+
+    if (bestGroup && bestScore >= SPLIT_THRESHOLD) {
+      usedOldNums.add(oldline.num);
+      for (const g of bestGroup) {
+        usedNewNums.add(g.num);
+      }
+
+      matchSet.push({
+        old: oldline.num,
+        new: bestGroup.map((g) => g.num),
+        status: "match_split",
+        score: bestScore,
+      });
+    }
+  }
+
   for (const oldline of oldLines) {
     if (!usedOldNums.has(oldline.num)) {
       usedOldNums.add(oldline.num);
@@ -145,6 +225,14 @@ function mapLines(oldLines, newLines) {
   matchSet.sort((a, b) => a.old - b.old);
 
   return matchSet;
+}
+
+function isTrivialLine(line) {
+  const n = (line.norm || "").trim();
+  if (!n) return true;
+  if (n === "{" || n === "}") return true;
+  if (n === ";") return true;
+  return false;
 }
 
 function getContext(lines, lineNum, radius) {

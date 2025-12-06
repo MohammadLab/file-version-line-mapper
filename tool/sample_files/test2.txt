@@ -23,7 +23,8 @@
   - slightly edited lines and comments
   - inserted lines
   - deleted lines
-  - moved blocks of text
+  - moved bloc
+  ks of text
 
 # Future ideas
 
