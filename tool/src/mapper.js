@@ -41,10 +41,13 @@ function mapLines(oldLines, newLines) {
         !usedOld.has(oldline.norm) &&
         !usedNew.has(newline.norm)
       ) {
+        // NEW: detect trivial match for exact matches
+        const isTrivial = isTrivialLine(oldline) && isTrivialLine(newline);
+
         matchSet.push({
           old: oldline.num,
           new: [newline.num],
-          status: "match",
+          status: isTrivial ? "trivial_match" : "match", // CHANGED
         });
 
         usedOld.add(oldline.norm);
@@ -70,7 +73,7 @@ function mapLines(oldLines, newLines) {
   }
 
   const TOP_K = 15;
-  const SIM_THRESHOLD = 0.51;
+  const SIM_THRESHOLD = 0.5;
   const CONTEXT_RADIUS = 2;
   const candidateList = [];
 
@@ -81,21 +84,19 @@ function mapLines(oldLines, newLines) {
   const SPLIT_CONTEXT_RADIUS = 1; // NEW: tighter context for splits
 
   for (const oldline of remainingOld) {
-    if (isTrivialLine(oldline)) continue; // NEW: don't split on trivial lines
+    if (isTrivialLine(oldline)) continue; // don't split on trivial lines
 
     let bestGroup = null;
     let bestScore = 0;
 
-    const ctxOld = getContext(oldLines, oldline.num, SPLIT_CONTEXT_RADIUS); // NEW
+    const ctxOld = getContext(oldLines, oldline.num, SPLIT_CONTEXT_RADIUS);
 
     // iterate over all newLines and try consecutive groups
     for (let i = 0; i < newLines.length; i++) {
-      // NEW: only consider groups near this old line
       if (Math.abs(oldline.num - newLines[i].num) > SPLIT_MAX_OFFSET) continue;
 
-      // first line of group must be unused
       if (usedNewNums.has(newLines[i].num)) continue;
-      if (isTrivialLine(newLines[i])) continue; // NEW: don't start split on trivial line
+      if (isTrivialLine(newLines[i])) continue;
 
       for (let size = 2; size <= SPLIT_MAX_GROUP; size++) {
         const group = [];
@@ -113,7 +114,6 @@ function mapLines(oldLines, newLines) {
             break;
           }
           if (isTrivialLine(ln)) {
-            // NEW: whole group must be non-trivial
             allFree = false;
             break;
           }
@@ -123,7 +123,7 @@ function mapLines(oldLines, newLines) {
         if (!allFree || group.length < 2) continue;
 
         const combinedNorm = group.map((g) => g.norm).join(" ");
-        const ctxNew = getContext(newLines, group[0].num, SPLIT_CONTEXT_RADIUS); // NEW
+        const ctxNew = getContext(newLines, group[0].num, SPLIT_CONTEXT_RADIUS);
 
         const contentSim = contentSimilarity(oldline.norm, combinedNorm);
         const ctxSim = contextSimilarity(ctxOld, ctxNew);
@@ -152,7 +152,7 @@ function mapLines(oldLines, newLines) {
   }
 
   for (const oldline of oldLinesNoMatch) {
-    if (isTrivialLine(oldline)) continue; // NEW: skip trivial old lines
+    if (isTrivialLine(oldline)) continue;
 
     const ctxOld = getContext(oldLines, oldline.num, CONTEXT_RADIUS);
     const candidates = [];
@@ -202,10 +202,15 @@ function mapLines(oldLines, newLines) {
     usedOldNums.add(cand.old);
     usedNewNums.add(cand.new);
 
+    const oldObj = oldLines.find((l) => l.num === cand.old);
+    const newObj = newLines.find((l) => l.num === cand.new);
+    const isTrivial =
+      oldObj && newObj && isTrivialLine(oldObj) && isTrivialLine(newObj);
+
     matchSet.push({
       old: cand.old,
       new: [cand.new],
-      status: "match",
+      status: isTrivial ? "trivial_match" : "match", // CHANGED
       score: cand.score,
     });
   }
@@ -244,7 +249,7 @@ function isTrivialLine(line) {
   // We want to be aggressive about *keeping* lines (for more matching),
   // so we only mark very short punctuation-only lines as trivial,
   // but explicitly *keep* single braces so they can still be matched.
-  if (n.length <= 2 && n !== "{" && n !== "}") {
+  if (n.length <= 2 /* && n !== "{" && n !== "}" */) {
     return true; // e.g. ";", "()", "||"
   }
 
