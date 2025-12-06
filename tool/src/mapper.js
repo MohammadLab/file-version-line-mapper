@@ -74,65 +74,6 @@ function mapLines(oldLines, newLines) {
   const CONTEXT_RADIUS = 2;
   const candidateList = [];
 
-  for (const oldline of oldLinesNoMatch) {
-    if (isTrivialLine(oldline)) continue; // NEW: skip trivial old lines
-
-    const ctxOld = getContext(oldLines, oldline.num, CONTEXT_RADIUS);
-    const candidates = [];
-
-    for (const newline of newLinesNoMatch) {
-      if (usedNewNums.has(newline.num)) continue;
-      if (isTrivialLine(newline)) continue;
-
-      const ctxNew = getContext(newLines, newline.num, CONTEXT_RADIUS);
-
-      const contentSim = contentSimilarity(oldline.norm, newline.norm);
-      const ctxSim = contextSimilarity(ctxOld, ctxNew);
-      const score = combinedSimilarity(contentSim, ctxSim);
-
-      candidates.push({
-        old: oldline.num,
-        new: newline.num,
-        score,
-      });
-    }
-
-    candidates.sort((a, b) => b.score - a.score);
-    const topCandidates = candidates
-      .slice(0, TOP_K)
-      .filter((c) => c.score >= SIM_THRESHOLD);
-
-    if (topCandidates.length > 0) {
-      candidateList.push({
-        old: oldline.num,
-        candidates: topCandidates,
-      });
-    }
-  }
-
-  const flatCandidates = [];
-  for (const entry of candidateList) {
-    for (const cand of entry.candidates) {
-      flatCandidates.push(cand);
-    }
-  }
-  flatCandidates.sort((a, b) => b.score - a.score);
-
-  for (const cand of flatCandidates) {
-    if (usedOldNums.has(cand.old)) continue;
-    if (usedNewNums.has(cand.new)) continue;
-
-    usedOldNums.add(cand.old);
-    usedNewNums.add(cand.new);
-
-    matchSet.push({
-      old: cand.old,
-      new: [cand.new],
-      status: "match",
-      score: cand.score,
-    });
-  }
-
   const remainingOld = oldLines.filter((l) => !usedOldNums.has(l.num));
   const SPLIT_MAX_GROUP = 3; // try up to 3-line splits
   const SPLIT_THRESHOLD = SIM_THRESHOLD; // reuse same threshold
@@ -210,6 +151,65 @@ function mapLines(oldLines, newLines) {
     }
   }
 
+  for (const oldline of oldLinesNoMatch) {
+    if (isTrivialLine(oldline)) continue; // NEW: skip trivial old lines
+
+    const ctxOld = getContext(oldLines, oldline.num, CONTEXT_RADIUS);
+    const candidates = [];
+
+    for (const newline of newLinesNoMatch) {
+      if (usedNewNums.has(newline.num)) continue;
+      if (isTrivialLine(newline)) continue;
+
+      const ctxNew = getContext(newLines, newline.num, CONTEXT_RADIUS);
+
+      const contentSim = contentSimilarity(oldline.norm, newline.norm);
+      const ctxSim = contextSimilarity(ctxOld, ctxNew);
+      const score = combinedSimilarity(contentSim, ctxSim);
+
+      candidates.push({
+        old: oldline.num,
+        new: newline.num,
+        score,
+      });
+    }
+
+    candidates.sort((a, b) => b.score - a.score);
+    const topCandidates = candidates
+      .slice(0, TOP_K)
+      .filter((c) => c.score >= SIM_THRESHOLD);
+
+    if (topCandidates.length > 0) {
+      candidateList.push({
+        old: oldline.num,
+        candidates: topCandidates,
+      });
+    }
+  }
+
+  const flatCandidates = [];
+  for (const entry of candidateList) {
+    for (const cand of entry.candidates) {
+      flatCandidates.push(cand);
+    }
+  }
+  flatCandidates.sort((a, b) => b.score - a.score);
+
+  for (const cand of flatCandidates) {
+    if (usedOldNums.has(cand.old)) continue;
+    if (usedNewNums.has(cand.new)) continue;
+
+    usedOldNums.add(cand.old);
+    usedNewNums.add(cand.new);
+
+    matchSet.push({
+      old: cand.old,
+      new: [cand.new],
+      status: "match",
+      score: cand.score,
+    });
+  }
+
   for (const oldline of oldLines) {
     if (!usedOldNums.has(oldline.num)) {
       usedOldNums.add(oldline.num);
@@ -228,10 +228,27 @@ function mapLines(oldLines, newLines) {
 }
 
 function isTrivialLine(line) {
-  const n = (line.norm || "").trim();
+  // Normalize and trim
+  const n = (line?.norm || "").trim();
+
+  // Completely empty after trim → trivial
   if (!n) return true;
-  if (n === "{" || n === "}") return true;
-  if (n === ";") return true;
+
+  // If there's any letter or digit, keep as non-trivial.
+  // This means comments and real code lines are *never* trivial.
+  if (/[a-zA-Z0-9]/.test(n)) {
+    return false;
+  }
+
+  // At this point the line is punctuation-only.
+  // We want to be aggressive about *keeping* lines (for more matching),
+  // so we only mark very short punctuation-only lines as trivial,
+  // but explicitly *keep* single braces so they can still be matched.
+  if (n.length <= 2 && n !== "{" && n !== "}") {
+    return true; // e.g. ";", "()", "||"
+  }
+
+  // All other punctuation-only lines are treated as non-trivial.
   return false;
 }
 
@@ -245,7 +262,18 @@ function getContext(lines, lineNum, radius) {
     i++
   ) {
     if (i === idx) continue;
-    ctx.push(lines[i].norm);
+
+    const ln = lines[i];
+    if (!ln) continue;
+
+    const n = (ln.norm || "").trim();
+    if (!n) continue;
+
+    // Only include non-trivial lines in context so the context
+    // signal is strong and not just `{`, `}`, or empty lines.
+    if (!isTrivialLine(ln)) {
+      ctx.push(n);
+    }
   }
 
   return ctx;
