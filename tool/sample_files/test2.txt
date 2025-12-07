@@ -1,0 +1,35 @@
+# Simple Line Mapper Test - Modified Version
+
+1. Initialize the working directory.        # wording change
+2. Scan all files recursively.
+3. For each file, read every line into memory.
+4. Normalize line endings to UNIX style.
+5. Ignore empty lines and pure whitespace.
+6. Trim trailing spaces on each line.       # new inserted line
+7. Build a hash for every non-empty line.
+8. Store mappings: (relative_path, line_number, hash).  # edited
+9. Sort lines by hash, then by file name.
+10. Group identical hashes into candidate matches.
+11. Try to align nearby lines using a window of 5.       # edited detail
+12. Emit a JSON report with all mappings.
+13. Print detailed statistics to stdout.                 # edited
+14. Exit with code 0 on success.
+
+# Notes
+
+- This modified file is intentionally small.
+- It is used to test:
+  - unchanged lines
+  - slightly edited lines and comments
+  - inserted lines
+  - deleted lines
+  - moved bloc
+  ks of text
+
+# Future ideas
+
+- Add support for:
+  - ignoring comments and docstrings          # edited
+  - fuzzy matching for small edits
+  - grouping by functions, classes, or regions # edited
+- Consider a CLI flag for verbose logging.     # new
