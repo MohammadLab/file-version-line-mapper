@@ -7,10 +7,14 @@ const fs = require("fs");
  */
 function readFileLines(filePath) {
   const content = fs.readFileSync(filePath, "utf8");
-  const rawLines = content.split(/\r?\n/);
+  const normalized = content
+    .replace(/\r\n/g, "\n") // Windows CRLF -> \n
+    .replace(/\r/g, "\n"); // stray CR -> \n
+
+  const rawLines = normalized.split("\n");
 
   return rawLines.map((line, idx) => ({
-    num: idx + 1, // 1-based
+    num: idx + 1, // 1-based physical line number
     text: line,
   }));
 }
