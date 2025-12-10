@@ -20,15 +20,16 @@ async function mapFiles(oldPath, newPath) {
 
 function mapLines(oldLines, newLines) {
   const matchSet = [];
-  const usedOld = new Set();
-  const usedNew = new Set();
-
+  const usedOldNums = new Set();
+  const usedNewNums = new Set();
+  const MAX_DISTANCE = 15;
   for (const oldline of oldLines) {
     for (const newline of newLines) {
       if (
         oldline.norm == newline.norm &&
-        !usedOld.has(oldline.norm) &&
-        !usedNew.has(newline.norm)
+        Math.abs(oldline.num - newline.num) <= MAX_DISTANCE &&
+        !usedOldNums.has(oldline.num) &&
+        !usedNewNums.has(newline.num)
       ) {
         const isTrivial = isTrivialLine(oldline) && isTrivialLine(newline);
 
@@ -36,32 +37,26 @@ function mapLines(oldLines, newLines) {
           old: oldline.num,
           new: [newline.num],
           status: isTrivial ? "trivial_match" : "match",
+          score: 1,
         });
 
-        usedOld.add(oldline.norm);
-        usedNew.add(newline.norm);
+        usedOldNums.add(oldline.num);
+        usedNewNums.add(newline.num);
       }
     }
   }
 
-  const oldLinesNoMatch = oldLines.filter((l) => !usedOld.has(l.norm));
-  const newLinesNoMatch = newLines.filter((l) => !usedNew.has(l.norm));
-
-  const usedOldNums = new Set();
-  const usedNewNums = new Set();
+  const oldLinesNoMatch = oldLines.filter((l) => !usedOldNums.has(l.num));
+  const newLinesNoMatch = newLines.filter((l) => !usedNewNums.has(l.num));
 
   for (const m of matchSet) {
-    usedOldNums.add(m.old);
-    for (const nn of m.new) {
-      usedNewNums.add(nn);
-    }
     if (typeof m.score === "undefined") {
       m.score = 1;
     }
   }
 
   const TOP_K = 15;
-  const SIM_THRESHOLD = 0.5;
+  const SIM_THRESHOLD = 0.4;
   const CONTEXT_RADIUS = 2;
   const candidateList = [];
 
@@ -203,15 +198,17 @@ function mapLines(oldLines, newLines) {
   }
 
   for (const oldline of oldLines) {
-    if (!usedOldNums.has(oldline.num)) {
-      usedOldNums.add(oldline.num);
-      matchSet.push({
-        old: oldline.num,
-        new: [],
-        status: "unmatched",
-        score: 0,
-      });
-    }
+    if (usedOldNums.has(oldline.num)) continue;
+
+    if (isTrivialLine(oldline)) continue;
+
+    usedOldNums.add(oldline.num);
+    matchSet.push({
+      old: oldline.num,
+      new: [],
+      status: "unmatched",
+      score: 0,
+    });
   }
 
   matchSet.sort((a, b) => a.old - b.old);
