@@ -8,28 +8,17 @@ const {
   combinedSimilarity,
 } = require("./similarity");
 
-/**
- * High-level entry point: maps two files and returns the mapping array.
- */
 async function mapFiles(oldPath, newPath) {
   const oldRaw = readFileLines(oldPath);
   const newRaw = readFileLines(newPath);
 
-  const oldLines = normalizeLines(oldRaw); // [{ num, text, norm }, ...]
+  const oldLines = normalizeLines(oldRaw);
   const newLines = normalizeLines(newRaw);
 
   return mapLines(oldLines, newLines);
 }
 
-/**
- * Core mapping logic:
- * - Global alignment using dynamic programming.
- * - Respects line order.
- * - Allows gaps (insertions/deletions).
- */
 function mapLines(oldLines, newLines) {
-  // 1. Find exact matches
-
   const matchSet = [];
   const usedOld = new Set();
   const usedNew = new Set();
@@ -41,13 +30,12 @@ function mapLines(oldLines, newLines) {
         !usedOld.has(oldline.norm) &&
         !usedNew.has(newline.norm)
       ) {
-        // NEW: detect trivial match for exact matches
         const isTrivial = isTrivialLine(oldline) && isTrivialLine(newline);
 
         matchSet.push({
           old: oldline.num,
           new: [newline.num],
-          status: isTrivial ? "trivial_match" : "match", // CHANGED
+          status: isTrivial ? "trivial_match" : "match",
         });
 
         usedOld.add(oldline.norm);
@@ -78,20 +66,19 @@ function mapLines(oldLines, newLines) {
   const candidateList = [];
 
   const remainingOld = oldLines.filter((l) => !usedOldNums.has(l.num));
-  const SPLIT_MAX_GROUP = 3; // try up to 3-line splits
-  const SPLIT_THRESHOLD = SIM_THRESHOLD; // reuse same threshold
-  const SPLIT_MAX_OFFSET = 3; // NEW: max distance in line numbers
-  const SPLIT_CONTEXT_RADIUS = 1; // NEW: tighter context for splits
+  const SPLIT_MAX_GROUP = 3;
+  const SPLIT_THRESHOLD = SIM_THRESHOLD;
+  const SPLIT_MAX_OFFSET = 3;
+  const SPLIT_CONTEXT_RADIUS = 1;
 
   for (const oldline of remainingOld) {
-    if (isTrivialLine(oldline)) continue; // don't split on trivial lines
+    if (isTrivialLine(oldline)) continue;
 
     let bestGroup = null;
     let bestScore = 0;
 
     const ctxOld = getContext(oldLines, oldline.num, SPLIT_CONTEXT_RADIUS);
 
-    // iterate over all newLines and try consecutive groups
     for (let i = 0; i < newLines.length; i++) {
       if (Math.abs(oldline.num - newLines[i].num) > SPLIT_MAX_OFFSET) continue;
 
@@ -210,7 +197,7 @@ function mapLines(oldLines, newLines) {
     matchSet.push({
       old: cand.old,
       new: [cand.new],
-      status: isTrivial ? "trivial_match" : "match", // CHANGED
+      status: isTrivial ? "trivial_match" : "match",
       score: cand.score,
     });
   }
@@ -233,27 +220,18 @@ function mapLines(oldLines, newLines) {
 }
 
 function isTrivialLine(line) {
-  // Normalize and trim
   const n = (line?.norm || "").trim();
 
-  // Completely empty after trim → trivial
   if (!n) return true;
 
-  // If there's any letter or digit, keep as non-trivial.
-  // This means comments and real code lines are *never* trivial.
   if (/[a-zA-Z0-9]/.test(n)) {
     return false;
   }
 
-  // At this point the line is punctuation-only.
-  // We want to be aggressive about *keeping* lines (for more matching),
-  // so we only mark very short punctuation-only lines as trivial,
-  // but explicitly *keep* single braces so they can still be matched.
-  if (n.length <= 2 /* && n !== "{" && n !== "}" */) {
-    return true; // e.g. ";", "()", "||"
+  if (n.length <= 2) {
+    return true;
   }
 
-  // All other punctuation-only lines are treated as non-trivial.
   return false;
 }
 
@@ -274,8 +252,6 @@ function getContext(lines, lineNum, radius) {
     const n = (ln.norm || "").trim();
     if (!n) continue;
 
-    // Only include non-trivial lines in context so the context
-    // signal is strong and not just `{`, `}`, or empty lines.
     if (!isTrivialLine(ln)) {
       ctx.push(n);
     }
