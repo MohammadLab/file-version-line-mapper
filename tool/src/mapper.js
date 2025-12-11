@@ -22,19 +22,24 @@ function mapLines(oldLines, newLines) {
   const usedNewNums = new Set();
 
   const TRIVIAL_CONTEXT_RADIUS = 2;
-  const TRIVIAL_CTX_THRESHOLD = 0.6;
+  const TRIVIAL_CTX_THRESHOLD = 0.1;
 
   for (const oldline of oldLines) {
     for (const newline of newLines) {
+      const isOldTrivial = isTrivialLine(oldline);
+      const isNewTrivial = isTrivialLine(newline);
+      const bothTrivial = isOldTrivial && isNewTrivial;
+
+      if (bothTrivial) {
+        oldline.norm = oldline.norm.trim();
+        newline.norm = newline.norm.trim();
+      }
+
       if (
         oldline.norm === newline.norm &&
         !usedOldNums.has(oldline.num) &&
         !usedNewNums.has(newline.num)
       ) {
-        const isOldTrivial = isTrivialLine(oldline);
-        const isNewTrivial = isTrivialLine(newline);
-        const bothTrivial = isOldTrivial && isNewTrivial;
-
         if (bothTrivial) {
           const ctxOld = getContext(
             oldLines,
@@ -161,7 +166,6 @@ function mapLines(oldLines, newLines) {
     const ctxOld = getContext(oldLines, oldline.num, CONTEXT_RADIUS);
     const candidates = [];
 
-    // NEW: learn the dominant local offset from already-matched lines
     const dominantOffset = getDominantOffset(matchSet, oldline.num, 10);
 
     for (const newline of newLinesNoMatch) {
@@ -173,18 +177,14 @@ function mapLines(oldLines, newLines) {
       const contentSim = contentSimilarity(oldline.norm, newline.norm);
       const ctxSim = contextSimilarity(ctxOld, ctxNew);
 
-      // base score: content + context, as before
       let score = combinedSimilarity(contentSim, ctxSim);
 
-      // NEW: if content is weak but context is good, use the dominant offset
-      // to boost candidates that sit where we "expect" them to be.
       if (dominantOffset != null && contentSim < 0.2 && ctxSim > 0) {
         const expectedNew = oldline.num + dominantOffset;
         const dist = Math.abs(newline.num - expectedNew);
         const MAX_DIST = 10;
         const locBoost = Math.max(0, (MAX_DIST - dist) / MAX_DIST);
 
-        // locality boost is capped and modest so we don't go crazy
         score += 0.2 * locBoost;
       }
 
@@ -250,7 +250,9 @@ function mapLines(oldLines, newLines) {
     });
   }
 
-  const newMatchSet = improveManyToOneMatches(oldLines, newLines, matchSet);
+  let newMatchSet = improveManyToOneMatches(oldLines, newLines, matchSet);
+
+  newMatchSet = refineSplitMatches(oldLines, newLines, newMatchSet);
 
   newMatchSet.sort((a, b) => a.old - b.old);
   return newMatchSet;
@@ -301,7 +303,6 @@ function getDominantOffset(matchSet, oldNum, radius = 10) {
   const counts = new Map();
 
   for (const m of matchSet) {
-    // only consider 1:1 mappings
     if (!m.new || m.new.length !== 1) continue;
 
     const old = m.old;
@@ -328,7 +329,6 @@ function getDominantOffset(matchSet, oldNum, radius = 10) {
 }
 
 function improveManyToOneMatches(oldLines, newLines, matchSet) {
-  // index old/new lines by line number
   const oldIndex = new Map();
   for (const l of oldLines) {
     oldIndex.set(l.num, l);
@@ -338,7 +338,6 @@ function improveManyToOneMatches(oldLines, newLines, matchSet) {
     newIndex.set(l.num, l);
   }
 
-  // normalize shape & build new -> olds mapping
   const newToOlds = new Map();
   for (const m of matchSet) {
     if (!Array.isArray(m.new)) {
@@ -360,18 +359,15 @@ function improveManyToOneMatches(oldLines, newLines, matchSet) {
     return !e || !e.new || e.new.length === 0;
   };
 
-  // tuned constants – aggressive enough to fix DoubleCache, but still safe
-  const BLOCK_MAX_OLD_PER_NEW = 12; // don't explode on crazy multi-matches
-  const BLOCK_EXPAND_RADIUS = 5; // how far from the anchor to expand
-  const BLOCK_MIN_SCORE = 0.1; // absolute minimum combinedSim to accept
+  const BLOCK_MAX_OLD_PER_NEW = 12;
+  const BLOCK_EXPAND_RADIUS = 5;
+  const BLOCK_MIN_SCORE = 0.1;
 
   for (const [n, olds] of newToOlds.entries()) {
     if (!olds || olds.length === 0 || olds.length > BLOCK_MAX_OLD_PER_NEW) {
       continue;
     }
 
-    // For each anchor old line that maps cleanly to this new line,
-    // try to "pull in" adjacent unmatched old lines to the same new line.
     const sortedOlds = [...olds].sort((a, b) => a - b);
 
     for (const anchorOld of sortedOlds) {
@@ -381,14 +377,13 @@ function improveManyToOneMatches(oldLines, newLines, matchSet) {
         !Array.isArray(anchorEntry.new) ||
         anchorEntry.new.length !== 1
       ) {
-        continue; // only use single-target anchors, not split matches
+        continue;
       }
 
       const anchorLine = oldIndex.get(anchorOld);
       const newLine = newIndex.get(n);
       if (!anchorLine || !newLine) continue;
 
-      // Baseline score of the anchor match
       const baseContent = contentSimilarity(anchorLine.norm, newLine.norm);
       const baseCtx = contextSimilarity(
         getContext(oldLines, anchorOld, 2),
@@ -396,7 +391,6 @@ function improveManyToOneMatches(oldLines, newLines, matchSet) {
       );
       const baseScore = combinedSimilarity(baseContent, baseCtx);
 
-      // Neighbors only need a fraction of the anchor's score, but not below BLOCK_MIN_SCORE
       const localMin = Math.max(BLOCK_MIN_SCORE, 0.3 * baseScore);
 
       for (const direction of [-1, +1]) {
@@ -405,21 +399,17 @@ function improveManyToOneMatches(oldLines, newLines, matchSet) {
 
         while (steps < BLOCK_EXPAND_RADIUS && oldIndex.has(i)) {
           steps++;
-
-          // already mapped to this new line? skip
           if (olds.includes(i)) {
             i += direction;
             continue;
           }
 
-          // stop if this old line already has some mapping
           if (!isUnmatched(i)) {
             break;
           }
 
           const oldLine = oldIndex.get(i);
           if (!oldLine || isTrivialLine(oldLine)) {
-            // skip trivial lines but don't necessarily stop the expansion
             i += direction;
             continue;
           }
@@ -432,10 +422,9 @@ function improveManyToOneMatches(oldLines, newLines, matchSet) {
           const score = combinedSimilarity(contentSim, ctxSim);
 
           if (score < localMin) {
-            break; // we hit the edge of the "similar" block
+            break;
           }
 
-          // Attach this old line to the same new line
           let entry = oldToEntry.get(i);
           if (entry) {
             entry.new = [n];
@@ -461,6 +450,61 @@ function improveManyToOneMatches(oldLines, newLines, matchSet) {
         }
       }
     }
+  }
+
+  return matchSet;
+}
+
+function refineSplitMatches(oldLines, newLines, matchSet) {
+  if (!matchSet || !Array.isArray(matchSet)) return matchSet || [];
+
+  const oldIndex = new Map(oldLines.map((l) => [l.num, l]));
+  const newIndex = new Map(newLines.map((l) => [l.num, l]));
+
+  for (const entry of matchSet) {
+    if (
+      !entry ||
+      entry.status !== "match_split" ||
+      !Array.isArray(entry.new) ||
+      entry.new.length <= 1
+    ) {
+      continue;
+    }
+
+    const oldLine = oldIndex.get(entry.old);
+    if (!oldLine || !oldLine.norm) continue;
+
+    const oldNorm = oldLine.norm;
+
+    let bestNewNum = null;
+    let bestContentSim = -1;
+
+    for (const newNum of entry.new) {
+      const newLine = newIndex.get(newNum);
+      if (!newLine || !newLine.norm) continue;
+
+      const cs = contentSimilarity(oldNorm, newLine.norm);
+      if (cs > bestContentSim) {
+        bestContentSim = cs;
+        bestNewNum = newNum;
+      }
+    }
+
+    if (bestNewNum == null) continue;
+
+    const ctxRadius = 2;
+    const ctxOld = getContext(oldLines, entry.old, ctxRadius);
+    const ctxNew = getContext(newLines, bestNewNum, ctxRadius);
+
+    const ctxSim = contextSimilarity(
+      ctxOld.map((l) => l.norm),
+      ctxNew.map((l) => l.norm)
+    );
+    const combined = combinedSimilarity(bestContentSim, ctxSim);
+
+    entry.new = [bestNewNum];
+    entry.status = "match";
+    entry.score = combined;
   }
 
   return matchSet;
