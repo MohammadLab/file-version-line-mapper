@@ -1,4 +1,3 @@
-// file_io.js
 const fs = require("fs");
 
 function readFileLines(filePath) {
