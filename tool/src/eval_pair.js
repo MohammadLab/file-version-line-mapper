@@ -45,7 +45,6 @@ function computeAccuracy(
 }
 
 function main() {
-  // adjust these if your paths are different
   const datasetDir = path.resolve(
     __dirname,
     "..",
@@ -78,7 +77,6 @@ function main() {
     const gold = parseGoldXml(goldXml);
     const predicted = JSON.parse(predJson);
 
-    // set ignoreTrivial: true if you want to ignore trivial_match lines
     const { correct, total, accuracy } = computeAccuracy(gold, predicted, {
       ignoreTrivial: false,
     });
