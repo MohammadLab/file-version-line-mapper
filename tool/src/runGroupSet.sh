@@ -27,7 +27,7 @@ for i in $(seq 1 25); do
   if [[ -f "$gold" ]]; then
     node eval_pair.js "$gold" "$out" "pair_${num}"
   else
-    echo "  (No gold mapping XML found at $gold, skipping accuracy check)"
+    echo "XML found at $gold, skipping check"
   fi
 done
 

@@ -19,8 +19,5 @@
      <LOCATION ORIG="5" NEW="5" />
      <LOCATION ORIG="7" NEW="-1" />
      <LOCATION ORIG="9" NEW="-1" />
-<!--
-     <LOCATION ORIG="11" NEW="10" />
--->
 </VERSION>
 </TEST>

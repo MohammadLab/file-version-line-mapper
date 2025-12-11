@@ -1,0 +1,13 @@
+[
+  { "old": 1, "new": [1], "status": "match", "score": 1 },
+  { "old": 2, "new": [2], "status": "trivial_match", "score": 1 },
+  { "old": 3, "new": [3], "status": "match", "score": 1 },
+  { "old": 4, "new": [4], "status": "trivial_match", "score": 1 },
+  { "old": 5, "new": [5], "status": "match", "score": 0.5 },
+  { "old": 6, "new": [6], "status": "trivial_match", "score": 1 },
+  { "old": 7, "new": [], "status": "unmatched", "score": 0 },
+  { "old": 8, "new": [8], "status": "trivial_match", "score": 1 },
+  { "old": 9, "new": [], "status": "unmatched", "score": 0 },
+  { "old": 11, "new": [9], "status": "match", "score": 1 },
+  { "old": 12, "new": [11], "status": "trivial_match", "score": 1 }
+]
