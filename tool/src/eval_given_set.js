@@ -5,46 +5,26 @@ function parseGoldXml(xmlText) {
   // remove XML comments
   const cleaned = xmlText.replace(/<!--[\s\S]*?-->/g, "");
 
-  const versionBodies = new Map();
-  const versionRegex = /<VERSION\s+NUMBER="(\d+)"[^>]*>([\s\S]*?)<\/VERSION>/g;
-  let vm;
-  while ((vm = versionRegex.exec(cleaned)) !== null) {
-    const verNum = parseInt(vm[1], 10);
-    const body = vm[2];
-    versionBodies.set(verNum, body);
+  // extract VERSION 2 body
+  const version2Regex = /<VERSION\s+NUMBER="2"[^>]*>([\s\S]*?)<\/VERSION>/;
+  const vm = version2Regex.exec(cleaned);
+  if (!vm) {
+    throw new Error("XML does not contain VERSION 2");
   }
+  const body2 = vm[1];
 
-  const body1 = versionBodies.get(1);
-  const body2 = versionBodies.get(2);
-
-  if (!body1 || !body2) {
-    throw new Error("Gold XML does not contain VERSION 1 and VERSION 2");
-  }
-
-  function parseVersion(body) {
-    const map = new Map();
-    const locRegex = /<LOCATION\s+ORIG="(\d+)"\s+NEW="(-?\d+)"\s*\/>/g;
-    let m;
-    while ((m = locRegex.exec(body)) !== null) {
-      const orig = parseInt(m[1], 10);
-      const neu = parseInt(m[2], 10);
-      map.set(orig, neu);
-    }
-    return map;
-  }
-
-  const v1 = parseVersion(body1);
-  const v2 = parseVersion(body2);
-
-  const composed = new Map();
-  for (const [orig, new1] of v1.entries()) {
-    const new2 = v2.get(orig);
-    if (new1 > 0 && new2 > 0) {
-      composed.set(new1, new2);
+  const gold = new Map();
+  const locRegex = /<LOCATION\s+ORIG="(\d+)"\s+NEW="(-?\d+)"\s*\/>/g;
+  let m;
+  while ((m = locRegex.exec(body2)) !== null) {
+    const orig = parseInt(m[1], 10); // line in version 1
+    const neu = parseInt(m[2], 10); // line in version 2 (or -1)
+    if (neu > 0) {
+      gold.set(orig, neu);
     }
   }
 
-  return composed;
+  return gold;
 }
 
 function computeAccuracy(

@@ -9,7 +9,13 @@ HOW TO RUN THE LINE MAPPER:
 
 4. To run our groups Dataset, run the following bash command ./runGroupSet.sh
     Output will be contained within src/mappings.
-    
+
+5. To run provided Dataset, run the following bash command "./runGivenSet.sh"
+    to include other data please ensure the following files are included in Dataset/eclipseTest
+        name_1.java
+        name_2.java
+        name.xml
+    where 'name' can hold any name. 
 NOTE: To test with some of the test files used in development, 
       you can try the following commands:
 
