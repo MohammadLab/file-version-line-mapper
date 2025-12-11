@@ -11,11 +11,17 @@ HOW TO RUN THE LINE MAPPER:
     Output will be contained within src/mappings.
 
 5. To run provided Dataset, run the following bash command "./runGivenSet.sh"
-    to include other data please ensure the following files are included in Dataset/eclipseTest
+    to include other data please ensure the following files are included in Dataset/eclipseTest 
         name_1.java
         name_2.java
         name.xml
     where 'name' can hold any name. 
+
+    or 
+
+    navigate to tool/src/runGivenSet.sh and change DATASET_DIR to your desired path, please conform to file naming above in order to run.
+
+
 NOTE: To test with some of the test files used in development, 
       you can try the following commands:
 
