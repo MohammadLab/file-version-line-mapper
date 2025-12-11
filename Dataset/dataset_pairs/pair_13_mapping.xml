@@ -1,4 +1,4 @@
-<TEST NAME="TEST_RemoteServiceProxy" FILE="RemoteService.java">
+<TEST NAME="TEST_RemoteService" FILE="RemoteService.java">
   <VERSION NUMBER="2" CHECKED="TRUE">
     <LOCATION ORIG="1" NEW="1"/>
     <LOCATION ORIG="2" NEW="3"/>
@@ -15,17 +15,16 @@
     <LOCATION ORIG="13" NEW="25"/>
     <LOCATION ORIG="14" NEW="27"/>
     <LOCATION ORIG="15" NEW="29"/>
-
     <LOCATION ORIG="16" NEW="31"/>
     <LOCATION ORIG="17" NEW="32"/>
-    <LOCATION ORIG="18" NEW="35"/>
-    <LOCATION ORIG="19" NEW="37"/>
-    <LOCATION ORIG="20" NEW="38"/>
-    <LOCATION ORIG="21" NEW="41"/>
-    <LOCATION ORIG="22" NEW="43"/>
-    <LOCATION ORIG="23" NEW="45"/>
-    <LOCATION ORIG="24" NEW="46"/>
-    <LOCATION ORIG="25" NEW="49"/>
-    <LOCATION ORIG="26" NEW="51"/>
+    <LOCATION ORIG="18" NEW="33"/>
+    <LOCATION ORIG="19" NEW="34"/>
+    <LOCATION ORIG="20" NEW="35"/>
+    <LOCATION ORIG="21" NEW="36"/>
+    <LOCATION ORIG="22" NEW="37"/>
+    <LOCATION ORIG="23" NEW="38"/>
+    <LOCATION ORIG="24" NEW="39"/>
+    <LOCATION ORIG="25" NEW="40"/>
+    <LOCATION ORIG="26" NEW="41"/>
   </VERSION>
 </TEST>

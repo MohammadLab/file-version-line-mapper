@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 const fs = require("fs");
 const path = require("path");
 
@@ -25,7 +23,7 @@ function computeAccuracy(
 
   for (const entry of predicted) {
     const orig = entry.old;
-    if (!gold.has(orig)) continue; // old line not in gold mapping
+    if (!gold.has(orig)) continue;
 
     if (ignoreTrivial && entry.status === "trivial_match") continue;
 
@@ -47,28 +45,63 @@ function computeAccuracy(
 }
 
 function main() {
-  const [, , goldPathArg, predPathArg, label] = process.argv;
+  // adjust these if your paths are different
+  const datasetDir = path.resolve(
+    __dirname,
+    "..",
+    "..",
+    "Dataset",
+    "dataset_pairs"
+  );
+  const mappingsDir = path.resolve(__dirname, "mappings");
 
-  if (!goldPathArg || !predPathArg) {
-    console.error("Usage: node eval_pair.js <goldXml> <predJson> [label]");
-    process.exit(1);
+  let globalCorrect = 0;
+  let globalTotal = 0;
+
+  for (let i = 1; i <= 25; i++) {
+    const num = String(i).padStart(2, "0");
+    const goldPath = path.join(datasetDir, `pair_${num}_mapping.xml`);
+    const predPath = path.join(mappingsDir, `mapping${i}.json`);
+
+    if (!fs.existsSync(goldPath)) {
+      console.log(`pair_${num}: missing gold file ${goldPath}, skipping`);
+      continue;
+    }
+    if (!fs.existsSync(predPath)) {
+      console.log(`pair_${num}: missing prediction file ${predPath}, skipping`);
+      continue;
+    }
+
+    const goldXml = fs.readFileSync(goldPath, "utf8");
+    const predJson = fs.readFileSync(predPath, "utf8");
+
+    const gold = parseGoldXml(goldXml);
+    const predicted = JSON.parse(predJson);
+
+    // set ignoreTrivial: true if you want to ignore trivial_match lines
+    const { correct, total, accuracy } = computeAccuracy(gold, predicted, {
+      ignoreTrivial: false,
+    });
+
+    globalCorrect += correct;
+    globalTotal += total;
+
+    console.log(
+      `pair_${num}: ${correct}/${total} = ${(accuracy * 100).toFixed(1)}%`
+    );
   }
 
-  const goldXml = fs.readFileSync(goldPathArg, "utf8");
-  const predJson = fs.readFileSync(predPathArg, "utf8");
-
-  const gold = parseGoldXml(goldXml);
-  const predicted = JSON.parse(predJson);
-
-  // change ignoreTrivial: true if you want to ignore trivial_match lines
-  const { correct, total, accuracy } = computeAccuracy(gold, predicted, {
-    ignoreTrivial: false,
-  });
-
-  const name = label || path.basename(predPathArg);
-  console.log(
-    `${name}: ${correct}/${total} = ${(accuracy * 100).toFixed(1)}% accuracy`
-  );
+  console.log("--------------------------------------------------");
+  if (globalTotal === 0) {
+    console.log("No valid pairs evaluated.");
+  } else {
+    const overall = (globalCorrect / globalTotal) * 100;
+    console.log(
+      `Overall: ${globalCorrect}/${globalTotal} = ${overall.toFixed(
+        1
+      )}% accuracy`
+    );
+  }
 }
 
 main();
