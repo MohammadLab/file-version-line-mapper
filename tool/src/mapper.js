@@ -20,12 +20,11 @@ function mapLines(oldLines, newLines) {
   const matchSet = [];
   const usedOldNums = new Set();
   const usedNewNums = new Set();
-  const MAX_DISTANCE = 15;
+
   for (const oldline of oldLines) {
     for (const newline of newLines) {
       if (
         oldline.norm == newline.norm &&
-        Math.abs(oldline.num - newline.num) <= MAX_DISTANCE &&
         !usedOldNums.has(oldline.num) &&
         !usedNewNums.has(newline.num)
       ) {
@@ -54,7 +53,7 @@ function mapLines(oldLines, newLines) {
   }
 
   const TOP_K = 15;
-  const SIM_THRESHOLD = 0.4;
+  const SIM_THRESHOLD = 0.3;
   const CONTEXT_RADIUS = 2;
   const candidateList = [];
 

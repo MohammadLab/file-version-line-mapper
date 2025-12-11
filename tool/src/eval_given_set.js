@@ -2,25 +2,20 @@ const fs = require("fs");
 const path = require("path");
 
 function parseGoldXml(xmlText) {
-  // remove XML comments
-  const cleaned = xmlText.replace(/<!--[\s\S]*?-->/g, "");
+  const cleaned = xmlText.replace(/<!--[\s\S]*?-->/g, ""); //get rid of XML comments
 
-  // extract VERSION 2 body
   const version2Regex = /<VERSION\s+NUMBER="2"[^>]*>([\s\S]*?)<\/VERSION>/;
   const vm = version2Regex.exec(cleaned);
-  if (!vm) {
-    throw new Error("XML does not contain VERSION 2");
-  }
-  const body2 = vm[1];
+  const body2 = vm[1]; //get v2 of xml
 
   const gold = new Map();
   const locRegex = /<LOCATION\s+ORIG="(\d+)"\s+NEW="(-?\d+)"\s*\/>/g;
   let m;
   while ((m = locRegex.exec(body2)) !== null) {
-    const orig = parseInt(m[1], 10); // line in version 1
-    const neu = parseInt(m[2], 10); // line in version 2 (or -1)
-    if (neu > 0) {
-      gold.set(orig, neu);
+    const orig = parseInt(m[1], 10);
+    const newOne = parseInt(m[2], 10);
+    if (newOne > 0) {
+      gold.set(orig, newOne);
     }
   }
 
@@ -102,17 +97,10 @@ function main() {
     );
   }
 
-  console.log("--------------------------------------------------");
-  if (globalTotal === 0) {
-    console.log("No cases evaluated.");
-  } else {
-    const overall = (globalCorrect / globalTotal) * 100;
-    console.log(
-      `Overall: ${globalCorrect}/${globalTotal} = ${overall.toFixed(
-        1
-      )}% accuracy`
-    );
-  }
+  const overall = (globalCorrect / globalTotal) * 100;
+  console.log(
+    `Overall: ${globalCorrect}/${globalTotal} = ${overall.toFixed(1)}% accuracy`
+  );
 }
 
 main();
