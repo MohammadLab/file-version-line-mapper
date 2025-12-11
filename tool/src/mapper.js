@@ -1,5 +1,3 @@
-// mapper.js
-
 const { readFileLines } = require("./file_io");
 const { normalizeLines } = require("./normalize");
 const {

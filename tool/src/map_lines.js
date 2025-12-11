@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-// map_lines.js
 const file = require("fs");
 const path = require("path");
 const { mapFiles } = require("./mapper");
