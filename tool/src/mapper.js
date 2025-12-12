@@ -83,13 +83,13 @@ function mapLines(oldLines, newLines) {
   const newLinesNoMatch = newLines.filter((l) => !usedNewNums.has(l.num));
 
   const TOP_K = 15;
-  const SIM_THRESHOLD = 0.25;
+  const SIM_THRESHOLD = 0.215;
   const CONTEXT_RADIUS = 2;
   const candidateList = [];
 
   const remainingOld = oldLines.filter((l) => !usedOldNums.has(l.num));
   const SPLIT_MAX_GROUP = 3;
-  const SPLIT_THRESHOLD = SIM_THRESHOLD;
+  const SPLIT_THRESHOLD = 1;
   const SPLIT_MAX_OFFSET = 3;
   const SPLIT_CONTEXT_RADIUS = 1;
 
