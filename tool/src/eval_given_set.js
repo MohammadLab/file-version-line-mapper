@@ -6,7 +6,7 @@ function parseGoldXml(xmlText) {
 
   const version2Regex = /<VERSION\s+NUMBER="2"[^>]*>([\s\S]*?)<\/VERSION>/;
   const vm = version2Regex.exec(cleaned);
-  const body2 = vm[1]; //get v2 of xml
+  const body2 = vm[1]; //(only read v2)
 
   const gold = new Map();
   const locRegex = /<LOCATION\s+ORIG="(\d+)"\s+NEW="(-?\d+)"\s*\/>/g;
