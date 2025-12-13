@@ -22,11 +22,8 @@ function parseGoldXml(xmlText) {
   return gold;
 }
 
-function computeAccuracy(
-  gold,
-  predicted,
-  { ignoreTrivial } = { ignoreTrivial: false }
-) {
+function computeAccuracy(gold, predicted, options) {
+  const ignoreTrivial = options?.ignoreTrivial ?? false;
   let correct = 0;
   let total = 0;
 
@@ -41,7 +38,7 @@ function computeAccuracy(
       Array.isArray(entry.new) && entry.new.length > 0 ? entry.new[0] : null;
 
     if (predictedNew === expected) {
-      correct++;
+      correct++; //correct mapping
     }
     total++;
   }
@@ -64,8 +61,8 @@ function main() {
 
   const mappingsDir = path.resolve(__dirname, "mappingsGivenSet");
 
-  let globalCorrect = 0;
-  let globalTotal = 0;
+  let globalCorrect = 0; // all correct mappings
+  let globalTotal = 0; //ALL MAPPINGS
 
   const files = fs.readdirSync(mappingsDir).filter((f) => f.endsWith(".json"));
 
@@ -82,12 +79,16 @@ function main() {
     const goldXml = fs.readFileSync(goldPath, "utf8");
     const predJson = fs.readFileSync(predPath, "utf8");
 
-    const gold = parseGoldXml(goldXml);
-    const predicted = JSON.parse(predJson);
+    const gold = parseGoldXml(goldXml); //parse correct xml provided by dataset
+    const predicted = JSON.parse(predJson); //parse output mappings
 
-    const { correct, total, accuracy } = computeAccuracy(gold, predicted, {
+    const result = computeAccuracy(gold, predicted, {
       ignoreTrivial: false,
     });
+
+    const correct = result.correct;
+    const total = result.total;
+    const accuracy = result.accuracy;
 
     globalCorrect += correct;
     globalTotal += total;
